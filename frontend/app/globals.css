@@ -1,0 +1,4 @@
+@tailwind base; @tailwind components; @tailwind utilities;
+body { @apply text-white antialiased; background: radial-gradient(1200px 600px at 80% -10%, rgba(0,168,255,.18), transparent), radial-gradient(900px 500px at -10% 10%, rgba(255,159,46,.12), transparent), #021236; min-height: 100vh; }
+select, option { color: #031a45; }
+audio { filter: hue-rotate(160deg); }
