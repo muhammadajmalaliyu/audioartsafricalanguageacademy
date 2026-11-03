@@ -6,7 +6,9 @@ import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
 import routes from "./routes";
+import { User } from "./models";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -28,6 +30,16 @@ app.use((e: any, _q: any, s: any, _n: any) => {
   s.status(500).json({ error: "Server error" });
 });
 
-mongoose.connect(process.env.MONGODB_URI as string).then(() => {
+// Creates the admin account automatically on first start (no shell needed on Render free tier).
+async function ensureAdmin() {
+  const email = (process.env.ADMIN_EMAIL || "").toLowerCase();
+  if (!email || !process.env.ADMIN_PASSWORD) return;
+  if (await User.exists({ email })) return;
+  await User.create({ name: process.env.ADMIN_NAME || "Admin", email, role: "admin", passwordHash: await bcrypt.hash(process.env.ADMIN_PASSWORD, 12) });
+  console.log("Admin account created:", email);
+}
+
+mongoose.connect(process.env.MONGODB_URI as string).then(async () => {
+  await ensureAdmin();
   app.listen(process.env.PORT || 4000, () => console.log("API running"));
 }).catch(e => { console.error("DB connection failed", e.message); process.exit(1); });
