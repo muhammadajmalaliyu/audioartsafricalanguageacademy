@@ -18,7 +18,7 @@ app.use(cors({ origin: origins, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 app.use("/api/auth", rateLimit({ windowMs: 15 * 60 * 1000, limit: 60 }));
-app.get("/health", (_, s) => s.json({ ok: true }));
+app.get("/health", (_, s) => s.json({ ok: true, db: mongoose.connection.readyState === 1 ? "connected" : "not connected" }));
 app.use("/api", routes);
 
 app.use((e: any, _q: any, s: any, _n: any) => {
@@ -39,7 +39,16 @@ async function ensureAdmin() {
   console.log("Admin account created:", email);
 }
 
-mongoose.connect(process.env.MONGODB_URI as string).then(async () => {
-  await ensureAdmin();
-  app.listen(process.env.PORT || 4000, () => console.log("API running"));
-}).catch(e => { console.error("DB connection failed", e.message); process.exit(1); });
+// Open the port first so Render sees the service as live, then keep retrying the database.
+app.listen(process.env.PORT || 4000, () => console.log("API listening"));
+async function connectDb() {
+  try {
+    await mongoose.connect(process.env.MONGODB_URI as string, { serverSelectionTimeoutMS: 15000 });
+    console.log("MongoDB connected");
+    await ensureAdmin();
+  } catch (e: any) {
+    console.error("DB connection failed:", e.message);
+    setTimeout(connectDb, 10000);
+  }
+}
+connectDb();

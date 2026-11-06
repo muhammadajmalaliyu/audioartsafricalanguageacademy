@@ -10,10 +10,10 @@ export default function Admin() {
   if (!ok) return <Spin />;
   return (
     <div className="space-y-6">
-      <h1 className="font-display text-3xl font-bold">Administrator dashboard</h1>
-      <div className="flex gap-2 flex-wrap">{[["overview", "Overview"], ["content", "Content"], ["learners", "Learners"], ["news", "Announcements"]].map(([k, n]) =>
+      <div className="flex items-center gap-3 flex-wrap"><h1 className="font-display text-3xl font-bold mr-auto">Administrator dashboard</h1><Link href="/admin/import" className="rounded-xl px-4 py-2.5 bg-accent text-navy-900 font-semibold hover:brightness-110">⬆ Bulk import</Link></div>
+      <div className="flex gap-2 flex-wrap">{[["overview", "Overview"], ["content", "Content"], ["learners", "Learners"], ["volunteers", "Volunteers"], ["news", "Announcements"]].map(([k, n]) =>
         <button key={k} onClick={() => setTab(k)} className={`px-4 py-2 rounded-xl font-semibold ${tab === k ? "bg-accent text-navy-900" : "bg-white/10"}`}>{n}</button>)}</div>
-      {tab === "overview" && <Overview />}{tab === "content" && <Content />}{tab === "learners" && <Learners />}{tab === "news" && <News />}
+      {tab === "overview" && <Overview />}{tab === "content" && <Content />}{tab === "learners" && <Learners />}{tab === "volunteers" && <Volunteers />}{tab === "news" && <News />}
     </div>
   );
 }
@@ -90,6 +90,32 @@ function News() {
         <Btn onClick={async () => { if (f.title && f.body) { await api("/admin/announcements", { body: f }); setF({ title: "", body: "" }); load(); } }}>Publish</Btn></Card>
       <div className="space-y-3">{a.map(x => <Card key={x._id}><p className="font-semibold">{x.title}</p><p className="text-sm text-white/70">{x.body}</p>
         <Btn variant="danger" className="mt-2 !py-1 text-sm" onClick={async () => { await api(`/admin/announcements/${x._id}`, { method: "DELETE" }); load(); }}>Remove</Btn></Card>)}</div>
+    </div>
+  );
+}
+
+const wa = (n: string) => { let d = (n || "").replace(/\D/g, ""); if (d.startsWith("0")) d = "234" + d.slice(1); return "https://wa.me/" + d; };
+function Volunteers() {
+  const [v, setV] = useState<any[] | null>(null); const [f, setF] = useState("all");
+  const load = () => api("/admin/volunteers").then(setV); useEffect(() => { load(); }, []);
+  if (!v) return <Spin />;
+  const list = v.filter(x => f === "all" || x.status === f);
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 flex-wrap items-center"><span className="text-white/60 text-sm">{v.length} volunteers</span>
+        {["all", "new", "contacted", "recorded", "declined"].map(s => <button key={s} onClick={() => setF(s)} className={`px-3 py-1 rounded-lg text-sm ${f === s ? "bg-brand text-navy-900" : "bg-white/10"}`}>{s}</button>)}</div>
+      {list.map(x => (
+        <Card key={x._id} className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap"><p className="font-semibold mr-auto">{x.name} <span className="ml-2 text-xs bg-accent/20 text-accent rounded px-2 py-0.5">{x.language}</span></p>
+            <select value={x.status} onChange={async e => { await api(`/admin/volunteers/${x._id}`, { method: "PUT", body: { status: e.target.value } }); load(); }} className="rounded-lg bg-white/10 px-2 py-1 text-sm">
+              {["new", "contacted", "recorded", "declined"].map(s => <option key={s}>{s}</option>)}</select></div>
+          <p className="text-sm text-white/70">{x.phone && <>📞 {x.phone} </>}{x.email && <>✉️ {x.email}</>}</p>
+          {x.notes && <p className="text-sm text-white/60">“{x.notes}”</p>}
+          <div className="flex gap-2">{x.phone && <a href={wa(x.phone)} target="_blank" rel="noopener" className="rounded-lg px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-sm">WhatsApp</a>}
+            {x.email && <a href={`mailto:${x.email}`} className="rounded-lg px-3 py-1.5 bg-white/10 text-sm">Email</a>}
+            <Btn variant="danger" className="ml-auto !py-1.5 text-sm" onClick={async () => { if (confirm("Delete this volunteer?")) { await api(`/admin/volunteers/${x._id}`, { method: "DELETE" }); load(); } }}>Delete</Btn></div>
+        </Card>))}
+      {!list.length && <p className="text-white/60">No volunteers here yet.</p>}
     </div>
   );
 }

@@ -56,3 +56,9 @@ enr.index({ user: 1, course: 1 }, { unique: true });
 export const Enrolment = model("Enrolment", enr);
 
 export const Announcement = model("Announcement", new Schema({ title: String, body: String }, T));
+
+export const Volunteer = model("Volunteer", new Schema({
+  name: { type: String, required: true, trim: true }, phone: String, email: String,
+  language: { type: String, required: true }, notes: String,
+  status: { type: String, enum: ["new", "contacted", "recorded", "declined"], default: "new", index: true },
+}, T));

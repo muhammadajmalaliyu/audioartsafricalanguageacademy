@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useRequire } from "@/lib/auth";
 import { Btn, Card, Err, Input, Spin } from "@/components/ui";
+import { makeQuiz } from "@/lib/quizgen";
 
 const blank = { kind: "word", text: "", translation: "" };
 
@@ -67,7 +68,7 @@ export default function Editor() {
           <p className="text-xs text-white/50">Select the radio button beside the correct answer.</p>
           <Btn variant="danger" className="text-sm !py-1.5" onClick={() => setQs(qs.filter((_, n) => n !== i))}>Delete question</Btn>
         </Card>))}
-      <div className="flex gap-2"><Btn variant="ghost" onClick={() => setQs([...qs, { prompt: "", options: ["", "", "", ""], answerIndex: 0 }])}>+ Add question</Btn><Btn onClick={saveQuiz}>Save quiz</Btn></div>
+      <div className="flex gap-2"><Btn variant="ghost" onClick={() => setQs([...qs, { prompt: "", options: ["", "", "", ""], answerIndex: 0 }])}>+ Add question</Btn><Btn variant="accent" onClick={() => { const it = l.items.filter((x: any) => x.text && x.translation); if (it.length < 4) return setErr("Add at least 4 words/sentences first."); if (qs.length && !confirm("Replace the current questions with a new auto-generated quiz?")) return; setQs(makeQuiz(it)); flash("Quiz generated — review it, then Save quiz"); }}>✨ Auto-generate quiz</Btn><Btn onClick={saveQuiz}>Save quiz</Btn></div>
     </div>
   );
 }

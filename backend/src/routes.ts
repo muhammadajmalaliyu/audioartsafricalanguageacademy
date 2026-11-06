@@ -4,8 +4,9 @@ import bcrypt from "bcryptjs";
 import multer from "multer";
 import { z } from "zod";
 import { Types } from "mongoose";
+import rateLimit from "express-rate-limit";
 import { v2 as cloud } from "cloudinary";
-import { User, Language, Course, Module, Lesson, Quiz, Attempt, Progress, Enrolment, Announcement } from "./models";
+import { User, Language, Course, Module, Lesson, Quiz, Attempt, Progress, Enrolment, Announcement, Volunteer } from "./models";
 import { auth, admin, signAccess, signRefresh, verifyRefresh } from "./auth";
 
 cloud.config({
@@ -250,5 +251,24 @@ r.post("/admin/announcements", auth, admin, async (q, s) => {
   s.status(201).json(await Announcement.create(z.object({ title: z.string().min(1), body: z.string().min(1) }).parse(q.body)));
 });
 r.delete("/admin/announcements/:id", auth, admin, async (q, s) => { await Announcement.findByIdAndDelete(q.params.id); s.json({ ok: true }); });
+
+/* ---------------- VOLUNTEERS ---------------- */
+const volLimit = rateLimit({ windowMs: 60 * 60 * 1000, limit: 10 });
+r.post("/volunteers", volLimit, async (q, s) => {
+  if (q.body?.website) return s.json({ ok: true }); // honeypot: bots fill this hidden field
+  const b = z.object({
+    name: z.string().min(2).max(80), phone: z.string().max(30).optional(), email: z.string().email().optional().or(z.literal("")),
+    language: z.string().min(2).max(40), notes: z.string().max(500).optional(), consent: z.literal(true),
+  }).refine(x => (x.phone && x.phone.trim()) || x.email, { message: "Please give a phone number or an email" }).parse(q.body);
+  await Volunteer.create({ name: b.name, phone: b.phone, email: b.email || undefined, language: b.language, notes: b.notes });
+  s.status(201).json({ ok: true });
+});
+r.get("/admin/volunteers", auth, admin, async (_, s) => s.json(await Volunteer.find().sort("-createdAt")));
+r.put("/admin/volunteers/:id", auth, admin, async (q, s) => {
+  const { status } = z.object({ status: z.enum(["new", "contacted", "recorded", "declined"]) }).parse(q.body);
+  const d = await Volunteer.findByIdAndUpdate(q.params.id, { status }, { new: true });
+  d ? s.json(d) : nf(s);
+});
+r.delete("/admin/volunteers/:id", auth, admin, async (q, s) => { await Volunteer.findByIdAndDelete(q.params.id); s.json({ ok: true }); });
 
 export default r;
