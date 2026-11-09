@@ -8,6 +8,7 @@ import rateLimit from "express-rate-limit";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import routes from "./routes";
+import { ensureLanguages } from "./languageContent";
 import { User } from "./models";
 
 const app = express();
@@ -46,6 +47,7 @@ async function connectDb() {
     await mongoose.connect(process.env.MONGODB_URI as string, { serverSelectionTimeoutMS: 15000 });
     console.log("MongoDB connected");
     await ensureAdmin();
+    await ensureLanguages();
   } catch (e: any) {
     console.error("DB connection failed:", e.message);
     setTimeout(connectDb, 10000);

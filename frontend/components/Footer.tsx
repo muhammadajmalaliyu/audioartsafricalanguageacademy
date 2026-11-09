@@ -12,7 +12,7 @@ export default function Footer() {
         <div>
           <h4 className="font-display font-semibold mb-3">Explore</h4>
           <ul className="space-y-2 text-sm text-white/70">
-            <li><Link href="/courses" className="hover:text-white">Courses</Link></li>
+            <li><Link href="/courses" className="hover:text-white">Learn</Link></li>
             <li><Link href="/auth/register" className="hover:text-white">Join free</Link></li>
             <li><Link href="/auth/login" className="hover:text-white">Log in</Link></li>
             <li><Link href="/volunteer" className="hover:text-white">Volunteer your voice</Link></li>

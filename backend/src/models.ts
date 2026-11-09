@@ -8,11 +8,13 @@ export const User = model("User", new Schema({
   passwordHash: { type: String, required: true },
   role: { type: String, enum: ["learner", "admin"], default: "learner", index: true },
   refreshHashes: { type: [String], default: [] },
+  language: { type: Schema.Types.ObjectId, ref: "Language" },
   resetHash: String, resetExpires: Date,
 }, T));
 
 export const Language = model("Language", new Schema({
   name: { type: String, required: true }, code: { type: String, required: true, unique: true },
+  greeting: String, tagline: String, history: String, culture: String, alphabet: String, specialChars: String, funFacts: String,
 }, T));
 
 export const Course = model("Course", new Schema({

@@ -42,7 +42,7 @@ function Content() {
     <div className="grid md:grid-cols-[320px_1fr] gap-5">
       <div className="space-y-4">
         <Card className="space-y-3"><h2 className="font-display font-semibold">Languages</h2>
-          <div className="flex flex-wrap gap-2">{langs.map(l => <span key={l._id} className="bg-white/10 rounded-lg px-3 py-1 text-sm">{l.name}</span>)}</div>
+          <div className="flex flex-wrap gap-2">{langs.map(l => <Link key={l._id} href={`/admin/languages/${l._id}`} className="bg-white/10 hover:bg-white/20 rounded-lg px-3 py-1 text-sm" title="Edit welcome page">{l.name} ✎</Link>)}</div>
           <Add ph="New language (e.g. Yoruba)" onAdd={(n: string) => run(() => api("/admin/languages", { body: { name: n, code: n.slice(0, 2).toLowerCase() + Math.random().toString(36).slice(2, 5) } }))} /></Card>
         <Card className="space-y-3"><h2 className="font-display font-semibold">New course</h2>
           <select className="w-full rounded-xl bg-white/10 px-3 py-2.5" value={nc.language} onChange={e => setNc({ ...nc, language: e.target.value })}><option value="">Language…</option>{langs.map(l => <option key={l._id} value={l._id}>{l.name}</option>)}</select>

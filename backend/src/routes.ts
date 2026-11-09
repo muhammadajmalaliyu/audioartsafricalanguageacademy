@@ -71,19 +71,29 @@ r.post("/auth/reset", async (q, s) => {
   u.passwordHash = await bcrypt.hash(b.password, 12); u.resetHash = undefined; u.resetExpires = undefined; u.refreshHashes = [];
   await u.save(); s.json({ ok: true });
 });
-r.get("/me", auth, async (q: any, s) => s.json(pub(await User.findById(q.uid))));
+r.get("/me", auth, async (q: any, s) => {
+  const u: any = await User.findById(q.uid).populate("language", "name greeting");
+  s.json({ ...pub(u), language: u.language || null });
+});
 r.patch("/me", auth, async (q: any, s) => {
-  const b = z.object({ name: z.string().min(2).max(80).optional(), password: pw.optional() }).parse(q.body);
+  const b = z.object({ name: z.string().min(2).max(80).optional(), password: pw.optional(), language: z.string().optional() }).parse(q.body);
   const u: any = await User.findById(q.uid);
   if (b.name) u.name = b.name;
   if (b.password) u.passwordHash = await bcrypt.hash(b.password, 12);
+  if (b.language && (await Language.exists({ _id: b.language }))) u.language = b.language;
   await u.save(); s.json(pub(u));
 });
 
 /* ---------------- LEARNER ---------------- */
 const isAdmin = async (uid: string) => (await User.findById(uid).select("role"))?.role === "admin";
 
-r.get("/languages", async (_, s) => s.json(await Language.find().sort("name")));
+r.get("/languages", async (_, s) => {
+  const ls: any[] = await Language.find().select("name code greeting tagline").sort("name").lean();
+  const cs = await Course.aggregate([{ $match: { published: true } }, { $group: { _id: "$language", n: { $sum: 1 } } }]);
+  const m: any = Object.fromEntries(cs.map((x: any) => [String(x._id), x.n]));
+  s.json(ls.map(l => ({ ...l, courses: m[String(l._id)] || 0 })));
+});
+r.get("/languages/:id", auth, async (q, s) => { const l = await Language.findById(q.params.id).lean(); l ? s.json(l) : nf(s); });
 
 r.get("/courses", auth, async (q: any, s) => {
   const courses: any[] = await Course.find({ published: true }).populate("language", "name code").lean();
@@ -169,7 +179,7 @@ const crud = (p: string, M: any, keys: string[], need: string[]) => {
     d ? s.json(d) : nf(s);
   });
 };
-crud("languages", Language, ["name", "code"], ["name", "code"]);
+crud("languages", Language, ["name", "code", "greeting", "tagline", "history", "culture", "alphabet", "specialChars", "funFacts"], ["name", "code"]);
 crud("courses", Course, ["language", "title", "level", "description", "published"], ["language", "title"]);
 crud("modules", Module, ["course", "title", "order"], ["course", "title"]);
 

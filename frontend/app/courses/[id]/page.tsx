@@ -13,7 +13,7 @@ export default function Course() {
   if (!d) return err ? <Err m={err} /> : <Spin />;
   return (
     <div className="space-y-6">
-      <Link href="/courses" className="text-sm text-white/60 hover:text-white">← All courses</Link>
+      <Link href={d.course.language?._id ? `/languages/${d.course.language._id}` : "/courses"} className="text-sm text-white/60 hover:text-white">← {d.course.language?.name || "All languages"}</Link>
       <div><span className="text-xs uppercase tracking-wider text-brand">{d.course.language?.name} · {d.course.level}</span>
         <h1 className="font-display text-3xl font-bold">{d.course.title}</h1><p className="text-white/70 mt-1">{d.course.description}</p></div>
       {d.modules.map((m: any) => (
