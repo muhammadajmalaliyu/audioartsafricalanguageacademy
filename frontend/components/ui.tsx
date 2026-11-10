@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export const Card = ({ children, className = "" }: any) => (
   <div className={`rounded-2xl border border-white/10 bg-white/[0.06] backdrop-blur p-5 ${className}`}>{children}</div>
@@ -21,6 +21,8 @@ export const Spin = () => <p className="text-white/60 p-8 text-center">Loadingâ€
 
 export function Play({ src }: { src?: string }) {
   const a = useRef<HTMLAudioElement | null>(null); const [on, setOn] = useState(false);
+  // A new card has a new recording: drop the old audio so the button always plays the current one.
+  useEffect(() => { a.current?.pause(); a.current = null; setOn(false); return () => { a.current?.pause(); }; }, [src]);
   if (!src) return <span className="text-xs text-white/40">No audio yet</span>;
   return (
     <button onClick={() => { if (!a.current) { a.current = new Audio(src); a.current.onended = () => setOn(false); }
