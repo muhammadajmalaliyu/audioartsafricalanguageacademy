@@ -7,6 +7,7 @@ import { Types } from "mongoose";
 import rateLimit from "express-rate-limit";
 import { v2 as cloud } from "cloudinary";
 import { User, Language, Course, Module, Lesson, Quiz, Attempt, Progress, Enrolment, Announcement, Volunteer } from "./models";
+import { sendMail } from "./mail";
 import { auth, admin, signAccess, signRefresh, verifyRefresh } from "./auth";
 
 cloud.config({
@@ -59,8 +60,16 @@ r.post("/auth/forgot", async (q, s) => {
   if (u) {
     const t = crypto.randomBytes(32).toString("hex");
     u.resetHash = sha(t); u.resetExpires = new Date(Date.now() + 3600e3); await u.save();
-    // TODO: send by email (e.g. Resend/Brevo free tier). Until then the link is printed in the server logs.
-    console.log(`PASSWORD RESET LINK for ${u.email}: ${(process.env.CLIENT_URL || "").split(",")[0]}/auth/reset?token=${t}`);
+    const link = `${(process.env.CLIENT_URL || "").split(",")[0]}/auth/reset?token=${t}`;
+    const name = String(u.name).replace(/[<>&"]/g, "");
+    const sent = await sendMail(u.email, "Reset your password – Audio Arts Africa Language Academy",
+      `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#031a45">
+        <h2>Reset your password</h2><p>Hello ${name},</p>
+        <p>We received a request to reset your password. Tap the button below to choose a new one. This link expires in 1 hour.</p>
+        <p style="margin:28px 0"><a href="${link}" style="background:#ff9f2e;color:#031a45;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold">Choose a new password</a></p>
+        <p style="font-size:13px;color:#555">If you did not ask for this, you can ignore this email — your password will not change.</p>
+        <p style="font-size:13px;color:#555">Audio Arts Africa Language Academy</p></div>`);
+    if (!sent) console.log(`PASSWORD RESET LINK for ${u.email}: ${link}`); // fallback until email is configured
   }
   s.json({ ok: true });
 });
