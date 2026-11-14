@@ -63,4 +63,17 @@ export const Volunteer = model("Volunteer", new Schema({
   name: { type: String, required: true, trim: true }, phone: String, email: String,
   language: { type: String, required: true }, notes: String,
   status: { type: String, enum: ["new", "contacted", "recorded", "declined"], default: "new", index: true },
+  publicName: { type: Boolean, default: false }, link: String, onWall: { type: Boolean, default: false },
+}, T));
+
+export const Partner = model("Partner", new Schema({
+  name: { type: String, required: true, trim: true }, organisation: String, email: String, phone: String,
+  interest: String, message: String,
+  status: { type: String, enum: ["new", "contacted", "closed"], default: "new", index: true },
+}, T));
+
+export const Post = model("Post", new Schema({
+  title: { type: String, required: true }, slug: { type: String, required: true, unique: true },
+  excerpt: String, body: { type: String, default: "" }, language: String,
+  published: { type: Boolean, default: false, index: true }, publishedAt: Date,
 }, T));

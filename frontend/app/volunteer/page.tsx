@@ -6,13 +6,13 @@ import { Btn, Card, Err, Input } from "@/components/ui";
 const LANGS = ["Hausa", "Yorùbá", "Igbo", "Nigerian Pidgin", "Etsako / Afemai", "Efik", "Ijaw", "Tiv", "Fulfulde", "Kanuri", "Other"];
 
 export default function Volunteer() {
-  const [f, setF] = useState<any>({ name: "", phone: "", email: "", language: "Hausa", other: "", notes: "", consent: false, website: "" });
+  const [f, setF] = useState<any>({ name: "", phone: "", email: "", language: "Hausa", other: "", notes: "", consent: false, publicName: false, link: "", website: "" });
   const [err, setErr] = useState(""); const [done, setDone] = useState(false); const [busy, setBusy] = useState(false);
   const set = (k: string) => (e: any) => setF({ ...f, [k]: e.target.value });
   async function submit(e: any) {
     e.preventDefault(); setErr(""); setBusy(true);
     try {
-      await api("/volunteers", { body: { name: f.name, phone: f.phone || undefined, email: f.email || undefined, language: f.language === "Other" ? f.other : f.language, notes: f.notes || undefined, consent: f.consent || undefined, website: f.website } });
+      await api("/volunteers", { body: { name: f.name, phone: f.phone || undefined, email: f.email || undefined, language: f.language === "Other" ? f.other : f.language, notes: f.notes || undefined, consent: f.consent || undefined, publicName: f.publicName, link: f.publicName && f.link ? f.link : undefined, website: f.website } });
       setDone(true);
     } catch (e: any) { setErr(e.message); }
     setBusy(false);
@@ -38,6 +38,9 @@ export default function Volunteer() {
           <input tabIndex={-1} autoComplete="off" value={f.website} onChange={set("website")} className="hidden" aria-hidden="true" />
           <label className="flex items-start gap-2 text-sm text-white/75"><input type="checkbox" className="mt-1" checked={f.consent} onChange={e => setF({ ...f, consent: e.target.checked })} required />
             I agree that Audio Arts Africa may contact me about voice recording, and may use my recordings in its language lessons.</label>
+          <label className="flex items-start gap-2 text-sm text-white/75"><input type="checkbox" className="mt-1" checked={f.publicName} onChange={e => setF({ ...f, publicName: e.target.checked })} />
+            Credit me by name on the public <b>Wall of Voices</b> (optional).</label>
+          {f.publicName && <Input type="url" placeholder="Link to your social media or portfolio (optional, https://…)" value={f.link} onChange={set("link")} />}
           <Err m={err} />
           <Btn variant="accent" className="w-full" disabled={busy}>{busy ? "Sending…" : "Send my details"}</Btn>
         </form>

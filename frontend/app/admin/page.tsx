@@ -11,9 +11,9 @@ export default function Admin() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3 flex-wrap"><h1 className="font-display text-3xl font-bold mr-auto">Administrator dashboard</h1><Link href="/admin/import" className="rounded-xl px-4 py-2.5 bg-accent text-navy-900 font-semibold hover:brightness-110">⬆ Bulk import</Link></div>
-      <div className="flex gap-2 flex-wrap">{[["overview", "Overview"], ["content", "Content"], ["learners", "Learners"], ["volunteers", "Volunteers"], ["news", "Announcements"]].map(([k, n]) =>
+      <div className="flex gap-2 flex-wrap">{[["overview", "Overview"], ["content", "Content"], ["learners", "Learners"], ["volunteers", "Volunteers"], ["partners", "Partners"], ["blog", "Blog"], ["news", "Announcements"]].map(([k, n]) =>
         <button key={k} onClick={() => setTab(k)} className={`px-4 py-2 rounded-xl font-semibold ${tab === k ? "bg-accent text-navy-900" : "bg-white/10"}`}>{n}</button>)}</div>
-      {tab === "overview" && <Overview />}{tab === "content" && <Content />}{tab === "learners" && <Learners />}{tab === "volunteers" && <Volunteers />}{tab === "news" && <News />}
+      {tab === "overview" && <Overview />}{tab === "content" && <Content />}{tab === "learners" && <Learners />}{tab === "volunteers" && <Volunteers />}{tab === "partners" && <Partners />}{tab === "blog" && <Posts />}{tab === "news" && <News />}
     </div>
   );
 }
@@ -111,11 +111,74 @@ function Volunteers() {
               {["new", "contacted", "recorded", "declined"].map(s => <option key={s}>{s}</option>)}</select></div>
           <p className="text-sm text-white/70">{x.phone && <>📞 {x.phone} </>}{x.email && <>✉️ {x.email}</>}</p>
           {x.notes && <p className="text-sm text-white/60">“{x.notes}”</p>}
+          {x.publicName && <p className="text-xs text-emerald-300">Agreed to be credited publicly{x.link ? ` · ${x.link}` : ""}</p>}
           <div className="flex gap-2">{x.phone && <a href={wa(x.phone)} target="_blank" rel="noopener" className="rounded-lg px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-sm">WhatsApp</a>}
             {x.email && <a href={`mailto:${x.email}`} className="rounded-lg px-3 py-1.5 bg-white/10 text-sm">Email</a>}
+            {x.publicName && <button onClick={async () => { await api(`/admin/volunteers/${x._id}`, { method: "PUT", body: { onWall: !x.onWall } }); load(); }} className={`rounded-lg px-3 py-1.5 text-sm ${x.onWall ? "bg-accent text-navy-900" : "bg-white/10"}`}>{x.onWall ? "✓ On Wall of Voices" : "Add to Wall of Voices"}</button>}
             <Btn variant="danger" className="ml-auto !py-1.5 text-sm" onClick={async () => { if (confirm("Delete this volunteer?")) { await api(`/admin/volunteers/${x._id}`, { method: "DELETE" }); load(); } }}>Delete</Btn></div>
         </Card>))}
       {!list.length && <p className="text-white/60">No volunteers here yet.</p>}
+    </div>
+  );
+}
+
+function Partners() {
+  const [v, setV] = useState<any[] | null>(null);
+  const load = () => api("/admin/partners").then(setV); useEffect(() => { load(); }, []);
+  if (!v) return <Spin />;
+  return (
+    <div className="space-y-4">
+      <p className="text-white/60 text-sm">{v.length} sponsor / partner enquiries</p>
+      {v.map(x => (
+        <Card key={x._id} className="space-y-2">
+          <div className="flex items-center gap-2 flex-wrap"><p className="font-semibold mr-auto">{x.name}{x.organisation && <span className="text-white/60 font-normal"> · {x.organisation}</span>} <span className="ml-2 text-xs bg-accent/20 text-accent rounded px-2 py-0.5">{x.interest}</span></p>
+            <select value={x.status} onChange={async e => { await api(`/admin/partners/${x._id}`, { method: "PUT", body: { status: e.target.value } }); load(); }} className="rounded-lg bg-white/10 px-2 py-1 text-sm">{["new", "contacted", "closed"].map(s => <option key={s}>{s}</option>)}</select></div>
+          <p className="text-sm text-white/70">{x.phone && <>📞 {x.phone} </>}{x.email && <>✉️ {x.email}</>}</p>
+          {x.message && <p className="text-sm text-white/60">“{x.message}”</p>}
+          <div className="flex gap-2">{x.phone && <a href={wa(x.phone)} target="_blank" rel="noopener" className="rounded-lg px-3 py-1.5 bg-emerald-500/20 text-emerald-300 text-sm">WhatsApp</a>}
+            {x.email && <a href={`mailto:${x.email}`} className="rounded-lg px-3 py-1.5 bg-white/10 text-sm">Email</a>}
+            <Btn variant="danger" className="ml-auto !py-1.5 text-sm" onClick={async () => { if (confirm("Delete this enquiry?")) { await api(`/admin/partners/${x._id}`, { method: "DELETE" }); load(); } }}>Delete</Btn></div>
+        </Card>))}
+      {!v.length && <p className="text-white/60">No enquiries yet.</p>}
+    </div>
+  );
+}
+
+function Posts() {
+  const [list, setList] = useState<any[] | null>(null); const [f, setF] = useState<any>(null); const [err, setErr] = useState("");
+  const load = () => api("/admin/posts").then(setList); useEffect(() => { load(); }, []);
+  if (!list) return <Spin />;
+  async function save() {
+    setErr("");
+    try {
+      const b = { title: f.title, excerpt: f.excerpt || "", language: f.language || "", body: f.body || "", published: !!f.published };
+      if (f._id) await api(`/admin/posts/${f._id}`, { method: "PUT", body: b }); else await api("/admin/posts", { body: b });
+      setF(null); load();
+    } catch (e: any) { setErr(e.message); }
+  }
+  if (f) return (
+    <Card className="space-y-3">
+      <h2 className="font-display font-semibold">{f._id ? "Edit article" : "New article"}</h2>
+      <Input placeholder="Title" value={f.title} onChange={(e: any) => setF({ ...f, title: e.target.value })} />
+      <Input placeholder="Language (e.g. Hausa) — optional" value={f.language || ""} onChange={(e: any) => setF({ ...f, language: e.target.value })} />
+      <Input placeholder="Short summary shown on Google and in the list" value={f.excerpt || ""} onChange={(e: any) => setF({ ...f, excerpt: e.target.value })} maxLength={300} />
+      <textarea rows={16} className="w-full rounded-xl bg-white/10 border border-white/10 px-4 py-2.5 outline-none focus:border-brand placeholder:text-white/40" placeholder={"Write the article here.\n\nLeave a blank line between paragraphs.\nStart a line with ## for a heading.\nStart lines with - for a bullet list."} value={f.body || ""} onChange={e => setF({ ...f, body: e.target.value })} />
+      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!f.published} onChange={e => setF({ ...f, published: e.target.checked })} /> Published (visible to everyone)</label>
+      <Err m={err} />
+      <div className="flex gap-2"><Btn onClick={save}>Save</Btn><Btn variant="ghost" onClick={() => setF(null)}>Cancel</Btn></div>
+    </Card>
+  );
+  return (
+    <div className="space-y-3">
+      <Btn variant="accent" onClick={() => setF({ title: "", excerpt: "", language: "", body: "", published: false })}>+ New article</Btn>
+      {list.map(p => (
+        <Card key={p._id} className="flex items-center gap-3 flex-wrap">
+          <div className="mr-auto"><p className="font-semibold">{p.title}</p><p className="text-xs text-white/50">{p.language} · <span className={p.published ? "text-emerald-300" : ""}>{p.published ? "Published" : "Draft"}</span></p></div>
+          {p.published && <a href={`/blog/${p.slug}`} target="_blank" rel="noopener" className="rounded-lg px-3 py-1.5 bg-white/10 text-sm">View ↗</a>}
+          <Btn variant="ghost" className="!py-1.5 text-sm" onClick={() => setF(p)}>Edit</Btn>
+          <Btn variant="danger" className="!py-1.5 text-sm" onClick={async () => { if (confirm("Delete this article?")) { await api(`/admin/posts/${p._id}`, { method: "DELETE" }); load(); } }}>Delete</Btn>
+        </Card>))}
+      {!list.length && <p className="text-white/60">No articles yet.</p>}
     </div>
   );
 }

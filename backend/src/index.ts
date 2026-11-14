@@ -9,6 +9,7 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import routes from "./routes";
 import { ensureLanguages } from "./languageContent";
+import { ensurePosts } from "./posts";
 import { User } from "./models";
 
 const app = express();
@@ -48,6 +49,7 @@ async function connectDb() {
     console.log("MongoDB connected");
     await ensureAdmin();
     await ensureLanguages();
+    await ensurePosts();
   } catch (e: any) {
     console.error("DB connection failed:", e.message);
     setTimeout(connectDb, 10000);

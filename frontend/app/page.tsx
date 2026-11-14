@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ImpactStats from "@/components/ImpactStats";
 
 const WA = "https://wa.me/2348029609876?text=" + encodeURIComponent("Hello, I would like to volunteer as a native-speaker voice for Audio Arts Africa Language Academy. My language is: ");
 
@@ -30,6 +31,11 @@ export default function Home() {
           <p className="text-white/85 mt-2 leading-relaxed">To build a world where Nigerian languages are understood, spoken, celebrated, and preserved for generations to come.</p>
         </div>
         <p className="md:col-span-2 text-center text-white/70">We want Nigerian languages to remain alive, accessible, and loved by everyone, today and in the future. <Link href="/about" className="text-accent font-semibold hover:underline">Be part of it →</Link></p>
+      </section>
+      <section className="mt-10 space-y-4">
+        <h2 className="font-display text-2xl font-bold text-center">Our impact so far</h2>
+        <ImpactStats compact />
+        <p className="text-center"><Link href="/impact" className="text-accent font-semibold hover:underline">See the full impact →</Link> <span className="text-white/40 mx-2">|</span> <Link href="/sponsors" className="text-accent font-semibold hover:underline">Sponsor or partner with us →</Link></p>
       </section>
       <section id="volunteer" className="mt-10 rounded-3xl border border-accent/40 bg-gradient-to-br from-accent/15 to-brand/10 p-8 text-center scroll-mt-24">
         <div className="text-4xl">🎙️</div>

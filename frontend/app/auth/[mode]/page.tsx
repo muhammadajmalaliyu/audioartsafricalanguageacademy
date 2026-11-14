@@ -19,7 +19,7 @@ export default function Auth() {
     e.preventDefault(); setErr(""); setMsg(""); setBusy(true);
     try {
       if (mode === "login") { const u = await login(f.email, f.password); router.push(u.role === "admin" ? "/admin" : "/courses"); }
-      else if (mode === "register") { await register(f.name, f.email, f.password); router.push("/courses"); }
+      else if (mode === "register") { await register(f.name, f.email, f.password); router.push("/courses?welcome=1"); }
       else if (mode === "forgot") { await api("/auth/forgot", { body: { email: f.email } }); setMsg("If that email exists, a reset link has been sent."); }
       else { await api("/auth/reset", { body: { token: new URLSearchParams(location.search).get("token"), password: f.password } }); setMsg("Password updated. Taking you to log in…"); setTimeout(() => router.push("/auth/login"), 2000); }
     } catch (e: any) { setErr(e.message); }

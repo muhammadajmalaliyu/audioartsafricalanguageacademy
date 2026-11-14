@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useRequire } from "@/lib/auth";
 import { Bar, Card, Err, Spin } from "@/components/ui";
+import ShareButton from "@/components/ShareButton";
 
 const paras = (t?: string) => (t || "").split(/\n\s*\n/).filter(x => x.trim());
 const lines = (t?: string) => (t || "").split("\n").filter(x => x.trim());
@@ -45,6 +46,7 @@ export default function LanguagePage() {
           </Link>))
           : <p className="text-white/75">Courses for {l.name} are coming soon. Are you a native speaker? <Link href="/volunteer" className="text-accent underline">Volunteer your voice</Link> and help us build them.</p>}
       </section>
+      <div className="text-center pb-4"><ShareButton className="px-5 py-2.5 rounded-xl bg-white/10 font-semibold hover:bg-white/20" /></div>
     </div>
   );
 }

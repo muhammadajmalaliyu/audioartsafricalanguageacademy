@@ -6,7 +6,7 @@ import { z } from "zod";
 import { Types } from "mongoose";
 import rateLimit from "express-rate-limit";
 import { v2 as cloud } from "cloudinary";
-import { User, Language, Course, Module, Lesson, Quiz, Attempt, Progress, Enrolment, Announcement, Volunteer } from "./models";
+import { User, Language, Course, Module, Lesson, Quiz, Attempt, Progress, Enrolment, Announcement, Volunteer, Partner, Post } from "./models";
 import { sendMail } from "./mail";
 import { auth, admin, signAccess, signRefresh, verifyRefresh } from "./auth";
 
@@ -22,6 +22,21 @@ const pub = (u: any) => ({ id: u._id, name: u.name, email: u.email, role: u.role
 const nf = (s: any) => s.status(404).json({ error: "Not found" });
 const destroy = (id: string) => cloud.uploader.destroy(id, { resource_type: "video" }).catch(() => {});
 
+
+const siteUrl = () => (process.env.CLIENT_URL || "").split(",")[0];
+async function sendWelcome(u: any) {
+  const name = String(u.name).replace(/[<>&"]/g, "").split(" ")[0];
+  const community = process.env.COMMUNITY_URL;
+  await sendMail(u.email, "Welcome to Audio Arts Africa Language Academy",
+    `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#031a45">
+      <h2>Welcome, ${name}! 🎉</h2>
+      <p>Thank you for joining Audio Arts Africa Language Academy. Learn Nigerian languages for free, with native voices.</p>
+      <p style="margin:24px 0"><a href="${siteUrl()}/courses" style="background:#ff9f2e;color:#031a45;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:bold">Choose your language</a></p>
+      ${community ? `<p>Join our learner community and practise with others: <a href="${community}">${community}</a></p>` : ""}
+      <p>Are you a native speaker? <a href="${siteUrl()}/volunteer">Lend us your voice</a>.</p>
+      <p style="font-size:13px;color:#555">Learn a Language. Connect with a People.</p></div>`);
+}
+
 async function session(res: any, u: any) {
   const rt = signRefresh(u);
   u.refreshHashes = [...u.refreshHashes, sha(rt)].slice(-5);
@@ -35,7 +50,9 @@ const pw = z.string().min(8).max(100);
 r.post("/auth/register", async (q, s) => {
   const b = z.object({ name: z.string().min(2).max(80), email: z.string().email(), password: pw }).parse(q.body);
   if (await User.exists({ email: b.email.toLowerCase() })) return s.status(409).json({ error: "Email already registered" });
-  await session(s, await User.create({ name: b.name, email: b.email, passwordHash: await bcrypt.hash(b.password, 12) }));
+  const nu = await User.create({ name: b.name, email: b.email, passwordHash: await bcrypt.hash(b.password, 12) });
+  sendWelcome(nu).catch(() => {}); // never block sign-up on email
+  await session(s, nu);
 });
 r.post("/auth/login", async (q, s) => {
   const b = z.object({ email: z.string().email(), password: z.string() }).parse(q.body);
@@ -278,16 +295,76 @@ r.post("/volunteers", volLimit, async (q, s) => {
   const b = z.object({
     name: z.string().min(2).max(80), phone: z.string().max(30).optional(), email: z.string().email().optional().or(z.literal("")),
     language: z.string().min(2).max(40), notes: z.string().max(500).optional(), consent: z.literal(true),
+    publicName: z.boolean().optional(), link: z.string().url().max(200).optional().or(z.literal("")),
   }).refine(x => (x.phone && x.phone.trim()) || x.email, { message: "Please give a phone number or an email" }).parse(q.body);
-  await Volunteer.create({ name: b.name, phone: b.phone, email: b.email || undefined, language: b.language, notes: b.notes });
+  await Volunteer.create({ name: b.name, phone: b.phone, email: b.email || undefined, language: b.language, notes: b.notes, publicName: !!b.publicName, link: b.publicName && b.link ? b.link : undefined });
   s.status(201).json({ ok: true });
 });
 r.get("/admin/volunteers", auth, admin, async (_, s) => s.json(await Volunteer.find().sort("-createdAt")));
 r.put("/admin/volunteers/:id", auth, admin, async (q, s) => {
-  const { status } = z.object({ status: z.enum(["new", "contacted", "recorded", "declined"]) }).parse(q.body);
-  const d = await Volunteer.findByIdAndUpdate(q.params.id, { status }, { new: true });
+  const b = z.object({ status: z.enum(["new", "contacted", "recorded", "declined"]).optional(), onWall: z.boolean().optional() }).parse(q.body);
+  const d = await Volunteer.findByIdAndUpdate(q.params.id, b, { new: true });
   d ? s.json(d) : nf(s);
 });
 r.delete("/admin/volunteers/:id", auth, admin, async (q, s) => { await Volunteer.findByIdAndDelete(q.params.id); s.json({ ok: true }); });
+
+/* ---------------- WALL OF VOICES (public, only consenting volunteers the admin approved) ---------------- */
+r.get("/voices", async (_, s) => s.json(await Volunteer.find({ onWall: true, publicName: true }).select("name language link").sort("name").lean()));
+
+/* ---------------- IMPACT (public, aggregate numbers only) ---------------- */
+r.get("/impact", async (_, s) => {
+  const since = new Date(Date.now() - 30 * 864e5);
+  const [learners, active, langs, lessons, attempts, voices] = await Promise.all([
+    User.countDocuments({ role: "learner" }),
+    Progress.distinct("user", { lastAccess: { $gte: since } }).then(a => a.length),
+    Course.distinct("language", { published: true }).then(a => a.length),
+    Lesson.countDocuments({ published: true }),
+    Attempt.countDocuments(),
+    Volunteer.countDocuments({ status: "recorded" }),
+  ]);
+  const rec = await Lesson.aggregate([{ $match: { published: true } }, { $unwind: "$items" }, { $match: { "items.audioUrl": { $exists: true, $ne: "" } } }, { $count: "n" }]);
+  const all = await Lesson.aggregate([{ $match: { published: true } }, { $project: { n: { $size: "$items" } } }, { $group: { _id: null, n: { $sum: "$n" } } }]);
+  s.set("Cache-Control", "public, max-age=300");
+  s.json({ learners, activeLearners: active, languages: langs, lessons, wordsRecorded: rec[0]?.n || 0, wordsAndPhrases: all[0]?.n || 0, quizAttempts: attempts, volunteerVoices: voices });
+});
+
+/* ---------------- SPONSORS & PARTNERS ---------------- */
+const partnerLimit = rateLimit({ windowMs: 60 * 60 * 1000, limit: 10 });
+r.post("/partners", partnerLimit, async (q, s) => {
+  if (q.body?.website) return s.json({ ok: true });
+  const b = z.object({
+    name: z.string().min(2).max(80), organisation: z.string().max(120).optional(), email: z.string().email().optional().or(z.literal("")),
+    phone: z.string().max(30).optional(), interest: z.string().max(60).optional(), message: z.string().max(1000).optional(),
+  }).refine(x => x.email || (x.phone && x.phone.trim()), { message: "Please give an email or a phone number" }).parse(q.body);
+  await Partner.create({ ...b, email: b.email || undefined });
+  if (process.env.NOTIFY_EMAIL) sendMail(process.env.NOTIFY_EMAIL, "New sponsor / partner enquiry",
+    `<p><b>${String(b.name).replace(/[<>&]/g, "")}</b> (${String(b.organisation || "no organisation").replace(/[<>&]/g, "")}) is interested in: ${String(b.interest || "—").replace(/[<>&]/g, "")}.</p><p>Open Admin → Partners to reply.</p>`).catch(() => {});
+  s.status(201).json({ ok: true });
+});
+r.get("/admin/partners", auth, admin, async (_, s) => s.json(await Partner.find().sort("-createdAt")));
+r.put("/admin/partners/:id", auth, admin, async (q, s) => {
+  const { status } = z.object({ status: z.enum(["new", "contacted", "closed"]) }).parse(q.body);
+  const d = await Partner.findByIdAndUpdate(q.params.id, { status }, { new: true }); d ? s.json(d) : nf(s);
+});
+r.delete("/admin/partners/:id", auth, admin, async (q, s) => { await Partner.findByIdAndDelete(q.params.id); s.json({ ok: true }); });
+
+/* ---------------- LANGUAGE HUB (blog) ---------------- */
+const slugify = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "post";
+const postSchema = z.object({ title: z.string().min(3).max(150), excerpt: z.string().max(300).optional(), body: z.string().max(20000).optional(), language: z.string().max(40).optional(), published: z.boolean().optional() });
+r.get("/posts", async (_, s) => { s.set("Cache-Control", "public, max-age=120"); s.json(await Post.find({ published: true }).select("title slug excerpt language publishedAt").sort("-publishedAt").lean()); });
+r.get("/posts/:slug", async (q, s) => { const p = await Post.findOne({ slug: q.params.slug, published: true }).lean(); p ? s.json(p) : nf(s); });
+r.get("/admin/posts", auth, admin, async (_, s) => s.json(await Post.find().sort("-createdAt").lean()));
+r.post("/admin/posts", auth, admin, async (q, s) => {
+  const b = postSchema.parse(q.body); let slug = slugify(b.title);
+  if (await Post.exists({ slug })) slug += "-" + Date.now().toString(36).slice(-4);
+  s.status(201).json(await Post.create({ ...b, slug, publishedAt: b.published ? new Date() : undefined }));
+});
+r.put("/admin/posts/:id", auth, admin, async (q, s) => {
+  const b = postSchema.partial().parse(q.body); const p: any = await Post.findById(q.params.id);
+  if (!p) return nf(s);
+  p.set(b); if (b.published && !p.publishedAt) p.publishedAt = new Date();
+  await p.save(); s.json(p);
+});
+r.delete("/admin/posts/:id", auth, admin, async (q, s) => { await Post.findByIdAndDelete(q.params.id); s.json({ ok: true }); });
 
 export default r;
