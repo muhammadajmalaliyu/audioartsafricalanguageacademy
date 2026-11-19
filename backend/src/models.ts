@@ -9,6 +9,7 @@ export const User = model("User", new Schema({
   role: { type: String, enum: ["learner", "admin"], default: "learner", index: true },
   refreshHashes: { type: [String], default: [] },
   language: { type: Schema.Types.ObjectId, ref: "Language" },
+  source: String,
   resetHash: String, resetExpires: Date,
 }, T));
 

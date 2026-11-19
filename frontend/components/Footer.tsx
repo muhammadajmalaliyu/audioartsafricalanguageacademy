@@ -13,7 +13,7 @@ export default function Footer() {
         <div>
           <h4 className="font-display font-semibold mb-3">Explore</h4>
           <ul className="space-y-2 text-sm text-white/70">
-            <L href="/courses">Learn</L><L href="/blog">Language Hub</L><L href="/about">Our mission &amp; vision</L>
+            <L href="/courses">Learn</L><L href="/learn">Free phrases</L><L href="/blog">Language Hub</L><L href="/about">Our mission &amp; vision</L>
             <L href="/auth/register">Join free</L><L href="/auth/login">Log in</L>
           </ul>
         </div>
@@ -33,6 +33,8 @@ export default function Footer() {
       </div>
       <div className="border-t border-white/10 py-4 text-center text-xs text-white/50">
         © {new Date().getFullYear()} Audio Arts Africa Language Academy. All rights reserved.
+        <span className="mx-2">·</span><Link href="/privacy" className="hover:text-white">Privacy Policy</Link>
+        <span className="mx-2">·</span><Link href="/terms" className="hover:text-white">Terms of Use</Link>
       </div>
     </footer>
   );

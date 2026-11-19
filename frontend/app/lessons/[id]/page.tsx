@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { useRequire } from "@/lib/auth";
 import { Btn, Card, Err, Play, Spin } from "@/components/ui";
+import FlashCard from "@/components/FlashCard";
 
 export default function Lesson() {
   const { id } = useParams() as any; const { ok } = useRequire();
@@ -38,17 +39,10 @@ function Learn({ items }: any) {
 function Practice({ items, next }: any) {
   const [i, setI] = useState(0); const [show, setShow] = useState(false); const [got, setGot] = useState(0);
   if (i >= items.length) return <Card className="text-center space-y-3"><p className="text-2xl">🎉</p><p className="font-semibold">You went through all {items.length} cards ({got} marked “got it”).</p><Btn variant="accent" onClick={next}>Continue</Btn></Card>;
-  const c = items[i];
-  return (
-    <Card className="text-center space-y-5 py-8">
-      <p className="text-xs text-white/50">Card {i + 1} of {items.length}</p>
-      <div className="flex justify-center items-center gap-4"><p className="font-display text-4xl font-bold">{c.text}</p><Play src={c.audioUrl} /></div>
-      {show ? <p className="text-2xl text-accent">{c.translation}</p> : <Btn variant="ghost" onClick={() => setShow(true)}>Reveal meaning</Btn>}
-      {show && <div className="flex gap-3 justify-center">
-        <Btn variant="ghost" onClick={() => { setShow(false); setI(i + 1); }}>Again later</Btn>
-        <Btn onClick={() => { setGot(got + 1); setShow(false); setI(i + 1); }}>Got it ✓</Btn></div>}
-    </Card>
-  );
+  return <FlashCard item={items[i]} index={i} total={items.length} revealed={show}
+    onReveal={() => setShow(true)}
+    onAgain={() => { setShow(false); setI(i + 1); }}
+    onNext={() => { setGot(got + 1); setShow(false); setI(i + 1); }} />;
 }
 
 function Quiz({ id, done }: any) {

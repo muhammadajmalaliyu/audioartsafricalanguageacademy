@@ -19,7 +19,9 @@ export default function Auth() {
     e.preventDefault(); setErr(""); setMsg(""); setBusy(true);
     try {
       if (mode === "login") { const u = await login(f.email, f.password); router.push(u.role === "admin" ? "/admin" : "/courses"); }
-      else if (mode === "register") { await register(f.name, f.email, f.password); router.push("/courses?welcome=1"); }
+      else if (mode === "register") { let src: string | undefined; try { const r = JSON.parse(localStorage.getItem("aaa_src") || "null"); if (r?.source) src = r.source; } catch {}
+        await register(f.name, f.email, f.password, src); try { localStorage.removeItem("aaa_src"); } catch {}
+        router.push("/courses?welcome=1"); }
       else if (mode === "forgot") { await api("/auth/forgot", { body: { email: f.email } }); setMsg("If that email exists, a reset link has been sent."); }
       else { await api("/auth/reset", { body: { token: new URLSearchParams(location.search).get("token"), password: f.password } }); setMsg("Password updated. Taking you to log in…"); setTimeout(() => router.push("/auth/login"), 2000); }
     } catch (e: any) { setErr(e.message); }
@@ -34,6 +36,7 @@ export default function Auth() {
         {mode !== "forgot" && <PasswordInput placeholder={mode === "reset" ? "New password (8+ characters)" : "Password (8+ characters)"} value={f.password} onChange={set("password")} minLength={8} required />}
         <Err m={err} />{msg && <p className="text-emerald-300 text-sm">{msg}</p>}
         <Btn className="w-full" disabled={busy}>{busy ? "Please wait…" : mode === "login" ? "Log in" : mode === "register" ? "Sign up" : "Continue"}</Btn>
+        {mode === "register" && <p className="text-xs text-white/50 text-center">By signing up you agree to our <Link href="/terms" className="underline hover:text-white">Terms of Use</Link> and <Link href="/privacy" className="underline hover:text-white">Privacy Policy</Link>.</p>}
       </form>
       <div className="mt-4 text-sm text-white/60 flex justify-between">
         {mode === "login" ? <><Link href="/auth/register" className="hover:text-white">Create account</Link><Link href="/auth/forgot" className="hover:text-white">Forgot password?</Link></>

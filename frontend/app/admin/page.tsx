@@ -21,7 +21,7 @@ export default function Admin() {
 function Overview() {
   const [s, setS] = useState<any>(null); useEffect(() => { api("/admin/stats").then(setS); }, []);
   if (!s) return <Spin />;
-  return <div className="grid grid-cols-2 md:grid-cols-5 gap-4">{[["Learners", s.learners], ["Courses", s.courses], ["Lessons", s.lessons], ["Published", s.published], ["Quiz attempts", s.attempts]].map(([l, v]) =>
+  return <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">{[["Learners", s.learners], ["Courses", s.courses], ["Lessons", s.lessons], ["Published", s.published], ["Quiz attempts", s.attempts], ["Sign-ups from homepage demo", s.fromHomeDemo]].map(([l, v]) =>
     <Card key={l}><p className="text-white/60 text-sm">{l}</p><p className="font-display text-3xl font-bold text-brand">{v}</p></Card>)}</div>;
 }
 

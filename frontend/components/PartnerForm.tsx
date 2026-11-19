@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { Btn, Card, Err, Input } from "./ui";
 
@@ -25,6 +26,7 @@ export default function PartnerForm() {
         <textarea className="w-full rounded-xl bg-white/10 border border-white/10 px-4 py-2.5 min-h-28 outline-none focus:border-brand placeholder:text-white/40" placeholder="How would you like to support or partner with us?" value={f.message} onChange={set("message")} maxLength={1000} />
         <input tabIndex={-1} autoComplete="off" value={f.website} onChange={set("website")} className="hidden" aria-hidden="true" />
         <Err m={err} /><Btn variant="accent" className="w-full" disabled={busy}>{busy ? "Sending…" : "Send enquiry"}</Btn>
+        <p className="text-xs text-white/50 text-center">We use your details only to reply to you. See our <Link href="/privacy" className="underline hover:text-white">Privacy Policy</Link>.</p>
       </form>
     </Card>
   );

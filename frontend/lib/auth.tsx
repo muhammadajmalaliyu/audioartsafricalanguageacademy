@@ -10,7 +10,7 @@ export function AuthProvider({ children }: any) {
   useEffect(() => { refresh().then(d => { setUser(d?.user || null); setReady(true); }); }, []);
   const start = (d: any) => { setToken(d.accessToken); setUser(d.user); return d.user; };
   const login = async (email: string, password: string) => start(await api("/auth/login", { body: { email, password } }));
-  const register = async (name: string, email: string, password: string) => start(await api("/auth/register", { body: { name, email, password } }));
+  const register = async (name: string, email: string, password: string, source?: string) => start(await api("/auth/register", { body: { name, email, password, source } }));
   const logout = async () => { await api("/auth/logout", { method: "POST", body: {} }).catch(() => {}); setToken(null); setUser(null); };
   return <Ctx.Provider value={{ user, ready, login, register, logout }}>{children}</Ctx.Provider>;
 }

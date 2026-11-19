@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 import { Btn, Card, Err, Input } from "@/components/ui";
 
@@ -37,7 +38,7 @@ export default function Volunteer() {
           <textarea className="w-full rounded-xl bg-white/10 border border-white/10 px-4 py-2.5 min-h-24 outline-none focus:border-brand placeholder:text-white/40" placeholder="Dialect or region, and anything we should know (optional)" value={f.notes} onChange={set("notes")} maxLength={500} />
           <input tabIndex={-1} autoComplete="off" value={f.website} onChange={set("website")} className="hidden" aria-hidden="true" />
           <label className="flex items-start gap-2 text-sm text-white/75"><input type="checkbox" className="mt-1" checked={f.consent} onChange={e => setF({ ...f, consent: e.target.checked })} required />
-            I agree that Audio Arts Africa may contact me about voice recording, and may use my recordings in its language lessons.</label>
+            I agree that Audio Arts Africa may contact me about voice recording, and may use my recordings in its language lessons. See the <Link href="/privacy" className="underline hover:text-white">Privacy Policy</Link>.</label>
           <label className="flex items-start gap-2 text-sm text-white/75"><input type="checkbox" className="mt-1" checked={f.publicName} onChange={e => setF({ ...f, publicName: e.target.checked })} />
             Credit me by name on the public <b>Wall of Voices</b> (optional).</label>
           {f.publicName && <Input type="url" placeholder="Link to your social media or portfolio (optional, https://…)" value={f.link} onChange={set("link")} />}

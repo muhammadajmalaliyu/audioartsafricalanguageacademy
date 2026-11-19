@@ -48,9 +48,9 @@ async function session(res: any, u: any) {
 /* ---------------- AUTH ---------------- */
 const pw = z.string().min(8).max(100);
 r.post("/auth/register", async (q, s) => {
-  const b = z.object({ name: z.string().min(2).max(80), email: z.string().email(), password: pw }).parse(q.body);
+  const b = z.object({ name: z.string().min(2).max(80), email: z.string().email(), password: pw, source: z.string().max(30).optional() }).parse(q.body);
   if (await User.exists({ email: b.email.toLowerCase() })) return s.status(409).json({ error: "Email already registered" });
-  const nu = await User.create({ name: b.name, email: b.email, passwordHash: await bcrypt.hash(b.password, 12) });
+  const nu = await User.create({ name: b.name, email: b.email, source: b.source, passwordHash: await bcrypt.hash(b.password, 12) });
   sendWelcome(nu).catch(() => {}); // never block sign-up on email
   await session(s, nu);
 });
@@ -210,11 +210,11 @@ crud("courses", Course, ["language", "title", "level", "description", "published
 crud("modules", Module, ["course", "title", "order"], ["course", "title"]);
 
 r.get("/admin/stats", auth, admin, async (_, s) => {
-  const [learners, courses, lessons, published, attempts] = await Promise.all([
+  const [learners, courses, lessons, published, attempts, fromHomeDemo] = await Promise.all([
     User.countDocuments({ role: "learner" }), Course.countDocuments(), Lesson.countDocuments(),
-    Lesson.countDocuments({ published: true }), Attempt.countDocuments(),
+    Lesson.countDocuments({ published: true }), Attempt.countDocuments(), User.countDocuments({ source: "home_demo" }),
   ]);
-  s.json({ learners, courses, lessons, published, attempts });
+  s.json({ learners, courses, lessons, published, attempts, fromHomeDemo });
 });
 r.get("/admin/courses", auth, admin, async (_, s) => s.json(await Course.find().populate("language", "name code").sort("-createdAt")));
 r.get("/admin/learners", auth, admin, async (_, s) => {
@@ -366,5 +366,77 @@ r.put("/admin/posts/:id", auth, admin, async (q, s) => {
   await p.save(); s.json(p);
 });
 r.delete("/admin/posts/:id", auth, admin, async (q, s) => { await Post.findByIdAndDelete(q.params.id); s.json({ ok: true }); });
+
+/* ---------------- HOMEPAGE DEMO (public): first 3 cards of each language's Greetings lesson, with native audio ---------------- */
+const normName = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+r.get("/demo", async (_, s) => {
+  const out: any = {};
+  for (const l of (await Language.find().lean()) as any[]) {
+    const key = normName(l.name);
+    if (!["hausa", "yoruba", "igbo"].includes(key)) continue;
+    const ids = (await Course.find({ language: l._id, published: true }).select("_id").lean()).map((c: any) => c._id);
+    const lesson: any = await Lesson.findOne({ course: { $in: ids }, published: true, title: /greetings/i }).sort("order").lean();
+    if (!lesson) continue;
+    const tot = await Lesson.aggregate([{ $match: { course: { $in: ids }, published: true } }, { $project: { n: { $size: "$items" } } }, { $group: { _id: null, n: { $sum: "$n" } } }]);
+    out[key] = { total: tot[0]?.n || lesson.items.length, items: lesson.items.slice(0, 3).map((i: any) => ({ text: i.text, translation: i.translation, audioUrl: i.audioUrl || null })) };
+  }
+  s.set("Cache-Control", "public, max-age=300");
+  s.json(out);
+});
+
+/* ---------------- PUBLIC SEO PAGES: language landing pages and one page per phrase ---------------- */
+const slugOf = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+const memo = new Map<string, { t: number; v: any }>();
+async function cached(key: string, fn: () => Promise<any>) {
+  const c = memo.get(key);
+  if (c && Date.now() - c.t < 5 * 60 * 1000) return c.v;
+  const v = await fn(); memo.set(key, { t: Date.now(), v }); return v;
+}
+async function langBySlug(slug: string) { return ((await Language.find().lean()) as any[]).find(l => slugOf(l.name) === slug) || null; }
+const phrasesOf = (l: any) => cached("phr:" + l._id, async () => {
+  const courses: any[] = await Course.find({ language: l._id, published: true }).select("_id").lean();
+  const lessons: any[] = await Lesson.find({ course: { $in: courses.map(c => c._id) }, published: true }).sort("course order").lean();
+  const seen = new Map<string, number>(); const out: any[] = [];
+  for (const les of lessons) for (const it of les.items) {
+    const base = "how-to-say-" + (slugOf(it.translation).slice(0, 60) || "phrase");
+    const n = (seen.get(base) || 0) + 1; seen.set(base, n);
+    out.push({ slug: n > 1 ? `${base}-${n}` : base, text: it.text, translation: it.translation, kind: it.kind, audioUrl: it.audioUrl || null, topic: les.title, lesson: String(les._id) });
+  }
+  return out;
+});
+const pubCache = (s: any) => s.set("Cache-Control", "public, max-age=300");
+
+r.get("/public/languages", async (_, s) => {
+  const out = await cached("langs", async () => {
+    const res: any[] = [];
+    for (const l of (await Language.find().select("name greeting tagline").sort("name").lean()) as any[]) {
+      const courses = await Course.countDocuments({ language: l._id, published: true });
+      res.push({ slug: slugOf(l.name), name: l.name, greeting: l.greeting, tagline: l.tagline, courses, phrases: courses ? (await phrasesOf(l)).length : 0 });
+    }
+    return res;
+  });
+  pubCache(s); s.json(out);
+});
+r.get("/public/language/:slug", async (q, s) => {
+  const l: any = await langBySlug(q.params.slug); if (!l) return nf(s);
+  const courses = await Course.find({ language: l._id, published: true }).select("title level description").lean();
+  if (!courses.length) return nf(s);
+  const phrases = await phrasesOf(l);
+  pubCache(s);
+  s.json({
+    language: { slug: slugOf(l.name), name: l.name, greeting: l.greeting, tagline: l.tagline, history: l.history, culture: l.culture, alphabet: l.alphabet, specialChars: l.specialChars, funFacts: l.funFacts },
+    courses, phrases,
+  });
+});
+r.get("/public/phrases/:slug", async (q, s) => {
+  const l: any = await langBySlug(q.params.slug); if (!l) return nf(s);
+  pubCache(s); s.json((await phrasesOf(l)).map((p: any) => p.slug));
+});
+r.get("/public/phrase/:lang/:slug", async (q, s) => {
+  const l: any = await langBySlug(q.params.lang); if (!l) return nf(s);
+  const all = await phrasesOf(l); const p = all.find((x: any) => x.slug === q.params.slug); if (!p) return nf(s);
+  pubCache(s);
+  s.json({ language: { slug: slugOf(l.name), name: l.name, greeting: l.greeting }, phrase: p, related: all.filter((x: any) => x.lesson === p.lesson && x.slug !== p.slug).slice(0, 12), total: all.length });
+});
 
 export default r;
