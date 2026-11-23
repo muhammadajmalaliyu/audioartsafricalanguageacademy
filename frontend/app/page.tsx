@@ -34,9 +34,9 @@ export default function Home() {
         </h1>
         <p className="mt-3 text-white/70 max-w-xl mx-auto">
           Learn real Nigerian languages through native audio, flashcards, and
-          quick quizzws - starting with <b className="text-white">Hausa</b>,{" "}
+          quick quizzes - starting with <b className="text-white">Hausa</b>,{" "}
           <b className="text-white">Yorùbá</b> and{" "}
-          <b className="text-white">Igbo,</b> and growing across more voices
+          <b className="text-white">Igbo,</b> and growing across more languages
           every week.
         </p>
       </section>
