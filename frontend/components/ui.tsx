@@ -59,7 +59,7 @@ export function Play({ src }: { src?: string }) {
     };
   }, [src]);
   if (!src)
-    return <span className="text-xs text-white/40">Audio loading...</span>;
+    return <span className="text-xs text-white/40">Audio loading</span>;
   return (
     <button
       onClick={() => {
